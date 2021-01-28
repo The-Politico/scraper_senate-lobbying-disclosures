@@ -45,6 +45,9 @@ TIME_PERIOD_PREFIXES = dict(
     YE="Year-End",
 )
 
+with open("self_lobbying_overrides.json", "r") as input:
+    SELF_LOBBYING_OVERRIDES = json.load(input)
+
 
 def get_types_for_quarter(time_period, common_session=None):
     session = BASE_SESSION if common_session is None else common_session
@@ -118,17 +121,75 @@ def get_filings_page(time_config, common_session=None, extra_fetch_params={}):
     )
 
 
+def commonize(raw_value):
+    formatted_value = (
+        raw_value.lower()
+        .replace(".", "")
+        .replace(",", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace(" u s a ", " usa ")
+        .replace(" u.s. ", " us ")
+        .replace(" u s ", " us ")
+        .replace("  ", " ")
+        .strip()
+    )
+
+    if formatted_value.endswith(" us a"):
+        formatted_value = f"{formatted_value[:-5]} usa"
+    elif formatted_value.endswith(" u s"):
+        formatted_value = f"{formatted_value[:-4]} us"
+
+    if formatted_value.startswith("the "):
+        return formatted_value[4:]
+
+    elif formatted_value.startswith("u.s. "):
+        return f"us {formatted_value[5:]}"
+    elif formatted_value.startswith("u s "):
+        return f"us {formatted_value[4:]}"
+
+    return formatted_value
+
+
 def process_result(raw_result, type_dict):
     posting_date = datetime.fromisoformat(raw_result["dt_posted"])
 
+    registrant_name = raw_result["registrant"]["name"]
+    client_name = raw_result["client"]["name"]
+
+    amount_reported = raw_result["income"]
+    amount_type = "income"
+
+    if all(
+        [
+            raw_result["income"] is None,
+            commonize(registrant_name) == commonize(client_name),
+        ]
+    ):
+        amount_reported = raw_result["expenses"]
+        amount_type = "expenses"
+
+    if amount_type == "income" and raw_result["income"] is None:
+        matching_overrides = [
+            override_dict
+            for override_dict in SELF_LOBBYING_OVERRIDES
+            if override_dict["registrantName"] == registrant_name
+            and override_dict["clientName"] == client_name
+        ]
+
+        if matching_overrides:
+            amount_reported = raw_result["expenses"]
+            amount_type = "expenses*"
+
     return dict(
         UUID=raw_result["filing_uuid"],
-        RegistrantName=raw_result["registrant"]["name"],
-        ClientName=raw_result["client"]["name"],
+        RegistrantName=registrant_name,
+        ClientName=client_name,
         FilingType=type_dict[raw_result["filing_type"]].replace(" - ", " "),
-        AmountReported=raw_result["income"],
+        AmountReported=amount_reported,
         DatePosted=posting_date.strftime("%Y-%m-%d"),
         FilingYear=raw_result["filing_year"],
+        AmountType=amount_type,
     )
 
 
@@ -204,7 +265,9 @@ def scrape_lda_filings(year, time_period, common_session=None):
 
         print("")
 
-    with open(f"reports/{year}-{time_period.lower()}.csv", "w") as output_file:
+    with open(
+        f"reports2/{year}-{time_period.lower()}.csv", "w"
+    ) as output_file:
         writer = DictWriter(
             output_file,
             fieldnames=[
@@ -215,6 +278,7 @@ def scrape_lda_filings(year, time_period, common_session=None):
                 "AmountReported",
                 "DatePosted",
                 "FilingYear",
+                "AmountType",
             ],
         )
         writer.writeheader()
