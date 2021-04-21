@@ -265,9 +265,7 @@ def scrape_lda_filings(year, time_period, common_session=None):
 
         print("")
 
-    with open(
-        f"reports2/{year}-{time_period.lower()}.csv", "w"
-    ) as output_file:
+    with open(f"reports/{year}-{time_period.lower()}.csv", "w") as output_file:
         writer = DictWriter(
             output_file,
             fieldnames=[
