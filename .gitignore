@@ -171,5 +171,6 @@ dmypy.json
 
 # End of https://www.gitignore.io/api/macos,linux,python
 
+old_data/*
 reports/*
 !reports/.gitkeep
