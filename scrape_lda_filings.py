@@ -31,7 +31,7 @@ TIME_PERIOD_SLUGS = dict(
     Q1="first_quarter",
     Q2="second_quarter",
     Q3="third_quarter",
-    Q4="forth_quarter",
+    Q4="fourth_quarter",
     MY="mid_year",
     YE="year_end",
 )
@@ -260,7 +260,9 @@ def scrape_lda_filings(year, time_period, common_session=None):
         )
 
         all_filings[filing_type["value"]] = collect_filings(
-            time_config, type_dict, session,
+            time_config,
+            type_dict,
+            session,
         )
 
         print("")
