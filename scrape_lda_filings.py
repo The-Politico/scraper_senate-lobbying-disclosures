@@ -25,7 +25,9 @@ LDA_API_ENDPOINTS = dict(
     filings=f"{BASE_API_URL}/filings/",
 )
 
-RESULTS_PER_PAGE = 250
+# Sadly, the Senate lowered the max results per page to 25.
+# RESULTS_PER_PAGE = 250
+RESULTS_PER_PAGE = 25
 
 TIME_PERIOD_SLUGS = dict(
     Q1="first_quarter",
